@@ -358,8 +358,8 @@ def train():
 
                     #print(('[%3d] %7d ||' + (' %s: %.3f |' * len(losses)) + ' T: %.3f || ETA: %s || timer: %.3f')
                             #% tuple([epoch, iteration] + loss_labels + [total, eta_str, elapsed]), flush=True)
-                    tbar.set_description(('[%3d] %7d ||' + (' %s: %.3f |' * len(losses)) + ' T: %.3f || ETA: %s || timer: %.3f')
-                            % tuple([epoch, iteration] + loss_labels + [total, eta_str, elapsed]))
+                    tbar.set_description((('%s:%.2f |' * len(losses)) + ' T:%.2f || ETA: %s')
+                            % tuple(loss_labels + [total, eta_str]))
 
                 if args.log:
                     precision = 5
