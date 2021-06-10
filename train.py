@@ -1,36 +1,43 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os
+import sys
+import argparse
+import time
+import math, random
+import numpy as np
+from tqdm import tqdm
+import datetime
+#from pathlib import Path
+
+import torch
+from torch.autograd import Variable
+import torch.nn as nn
+import torch.optim as optim
+#import torch.backends.cudnn as cudnn
+#import torch.nn.init as init
+import torch.utils.data as data
+
 from data import *
-from utils.augmentations import SSDAugmentation, BaseTransform
+from utils.augmentations import YOLACTAugmentation, BaseTransform
 from utils.functions import MovingAverage, SavePath
 from utils.logger import Log
 from utils import timer
 from layers.modules import MultiBoxLoss
 from yolact import Yolact
-import os
-import sys
-import time
-import math, random
-from pathlib import Path
-import torch
-from torch.autograd import Variable
-import torch.nn as nn
-import torch.optim as optim
-import torch.backends.cudnn as cudnn
-import torch.nn.init as init
-import torch.utils.data as data
-import numpy as np
-import argparse
-import datetime
 
 # Oof
 import eval as eval_script
 
-def str2bool(v):
-    return v.lower() in ("yes", "true", "t", "1")
+
+
+#def str2bool(v):
+    #return v.lower() in ("yes", "true", "t", "1")
 
 
 parser = argparse.ArgumentParser(
     description='Yolact Training Script')
-parser.add_argument('--batch_size', default=2, type=int,
+parser.add_argument('--batch_size', default=8, type=int,
                     help='Batch size for training')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from. If this is "interrupt"'\
@@ -134,40 +141,40 @@ class NetLoss(nn.Module):
     A wrapper for running the network and computing the loss
     This is so we can more efficiently use DataParallel.
     """
-    
+
     def __init__(self, net:Yolact, criterion:MultiBoxLoss):
         super().__init__()
 
         self.net = net
         self.criterion = criterion
-    
+
     def forward(self, images, targets, masks, num_crowds):
         preds = self.net(images)
         losses = self.criterion(self.net, preds, targets, masks, num_crowds)
         return losses
 
-class CustomDataParallel(nn.DataParallel):
-    """
-    This is a custom version of DataParallel that works better with our training data.
-    It should also be faster than the general case.
-    """
+#class CustomDataParallel(nn.DataParallel):
+    #"""
+    #This is a custom version of DataParallel that works better with our training data.
+    #It should also be faster than the general case.
+    #"""
 
-    def scatter(self, inputs, kwargs, device_ids):
-        # More like scatter and data prep at the same time. The point is we prep the data in such a way
-        # that no scatter is necessary, and there's no need to shuffle stuff around different GPUs.
-        devices = ['cuda:' + str(x) for x in device_ids]
-        splits = prepare_data(inputs[0], devices, allocation=args.batch_alloc)
+    #def scatter(self, inputs, kwargs, device_ids):
+        ## More like scatter and data prep at the same time. The point is we prep the data in such a way
+        ## that no scatter is necessary, and there's no need to shuffle stuff around different GPUs.
+        #devices = ['cuda:' + str(x) for x in device_ids]
+        #splits = prepare_data(inputs[0], devices, allocation=args.batch_alloc)
 
-        return [[split[device_idx] for split in splits] for device_idx in range(len(devices))], \
-            [kwargs] * len(devices)
+        #return [[split[device_idx] for split in splits] for device_idx in range(len(devices))], \
+            #[kwargs] * len(devices)
 
-    def gather(self, outputs, output_device):
-        out = {}
+    #def gather(self, outputs, output_device):
+        #out = {}
 
-        for k in outputs[0]:
-            out[k] = torch.stack([output[k].to(output_device) for output in outputs])
-        
-        return out
+        #for k in outputs[0]:
+            #out[k] = torch.stack([output[k].to(output_device) for output in outputs])
+
+        #return out
 
 def train():
     if not os.path.exists(args.save_folder):
@@ -175,18 +182,18 @@ def train():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    dataset = COCODetection(image_path=cfg.dataset.train_images,
+    dataset = COCOInstanceSegmentation(image_path=cfg.dataset.train_images,
                             info_file=cfg.dataset.train_info,
-                            transform=SSDAugmentation(MEANS))
-    
+                            transform=YOLACTAugmentation(MEANS))
+
     if args.validation_epoch > 0:
         setup_eval()
-        val_dataset = COCODetection(image_path=cfg.dataset.valid_images,
+        val_dataset = COCOInstanceSegmentation(image_path=cfg.dataset.valid_images,
                                     info_file=cfg.dataset.valid_info,
                                     transform=BaseTransform(MEANS))
 
     # Parallel wraps the underlying module, but when saving and loading we don't want that
-    yolact_net = Yolact()
+    yolact_net = Yolact().to(device)
     net = yolact_net
     net.train()
 
@@ -198,7 +205,7 @@ def train():
     # Apparently there's a race condition with multiple GPUs, so disable it just to be safe.
     timer.disable_all()
 
-    # Both of these can set args.resume to None, so do them before the check    
+    # Both of these can set args.resume to None, so do them before the check
     if args.resume == 'interrupt':
         args.resume = SavePath.get_interrupt(args.save_folder)
     elif args.resume == 'latest':
@@ -219,7 +226,7 @@ def train():
     criterion = MultiBoxLoss(num_classes=cfg.num_classes,
                              pos_threshold=cfg.positive_iou_threshold,
                              neg_threshold=cfg.negative_iou_threshold,
-                             negpos_ratio=cfg.ohem_negpos_ratio)
+                             negpos_ratio=cfg.ohem_negpos_ratio).to(device)
 
     if args.batch_alloc is not None:
         args.batch_alloc = [int(x) for x in args.batch_alloc.split(',')]
@@ -231,7 +238,7 @@ def train():
     net = NetLoss(net, criterion).to(device)
     #if args.cuda:
         #net = net.cuda()
-    
+
     # Initialize everything
     if not cfg.freeze_bn: yolact_net.freeze_bn() # Freeze bn so we don't kill our means
     #yolact_net(torch.zeros(1, 3, cfg.max_size, cfg.max_size).cuda())
@@ -246,7 +253,7 @@ def train():
 
     epoch_size = len(dataset) // args.batch_size
     num_epochs = math.ceil(cfg.max_iter / epoch_size)
-    
+
     # Which learning rate adjustment step are we on? lr' = lr * gamma ^ step_index
     step_index = 0
 
@@ -254,8 +261,8 @@ def train():
                                   num_workers=args.num_workers,
                                   shuffle=True, collate_fn=detection_collate,
                                   pin_memory=True)
-    
-    
+
+
     save_path = lambda epoch, iteration: SavePath(cfg.name, epoch, iteration).get_path(root=args.save_folder)
     time_avg = MovingAverage()
 
@@ -263,15 +270,18 @@ def train():
     loss_avgs  = { k: MovingAverage(100) for k in loss_types }
 
     print('Begin training!')
-    print()
+    #print()
     # try-except so you can use ctrl+c to save early and stop training
     try:
         for epoch in range(num_epochs):
+            print('Epoch %d/%d'%(epoch, num_epochs))
             # Resume from start_iter
             if (epoch+1)*epoch_size < iteration:
                 continue
-            
-            for datum in data_loader:
+
+            tbar = tqdm(data_loader)
+            for i, (images, gt) in enumerate(tbar):
+            #for datum in data_loader:
                 # Stop if we've reached an epoch if we're resuming from start_iter
                 if iteration == (epoch+1)*epoch_size:
                     break
@@ -290,7 +300,7 @@ def train():
                         # Reset the loss averages because things might have changed
                         for avg in loss_avgs:
                             avg.reset()
-                
+
                 # If a config setting was changed, remove it from the list so we don't keep checking
                 if changed:
                     cfg.delayed_settings = [x for x in cfg.delayed_settings if x[0] > iteration]
@@ -303,20 +313,23 @@ def train():
                 while step_index < len(cfg.lr_steps) and iteration >= cfg.lr_steps[step_index]:
                     step_index += 1
                     set_lr(optimizer, args.lr * (args.gamma ** step_index))
-                
+
                 # Zero the grad to get ready to compute gradients
                 optimizer.zero_grad()
 
-                images, gt = datum
+                #images, gt = datum
                 targets, masks, num_crowds = gt
+                images = images.to(device)
+                targets = [target.to(device) for target in targets]
+                masks = [mask.to(device) for mask in masks]
 
                 # Forward Pass + Compute loss at the same time (see CustomDataParallel and NetLoss)
                 #losses = net(datum)
                 losses = net(images, targets, masks, num_crowds)
-                
+
                 losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
                 loss = sum([losses[k] for k in losses])
-                
+
                 # no_inf_mean removes some components from the loss, so make sure to backward through all of it
                 # all_loss = sum([v.mean() for v in losses.values()])
 
@@ -324,7 +337,7 @@ def train():
                 loss.backward() # Do this to free up vram even if loss is not finite
                 if torch.isfinite(loss).item():
                     optimizer.step()
-                
+
                 # Add the loss to the moving average for bookkeeping
                 for k in losses:
                     loss_avgs[k].add(losses[k].item())
@@ -339,12 +352,14 @@ def train():
 
                 if iteration % 10 == 0:
                     eta_str = str(datetime.timedelta(seconds=(cfg.max_iter-iteration) * time_avg.get_avg())).split('.')[0]
-                    
+
                     total = sum([loss_avgs[k].get_avg() for k in losses])
                     loss_labels = sum([[k, loss_avgs[k].get_avg()] for k in loss_types if k in losses], [])
-                    
-                    print(('[%3d] %7d ||' + (' %s: %.3f |' * len(losses)) + ' T: %.3f || ETA: %s || timer: %.3f')
-                            % tuple([epoch, iteration] + loss_labels + [total, eta_str, elapsed]), flush=True)
+
+                    #print(('[%3d] %7d ||' + (' %s: %.3f |' * len(losses)) + ' T: %.3f || ETA: %s || timer: %.3f')
+                            #% tuple([epoch, iteration] + loss_labels + [total, eta_str, elapsed]), flush=True)
+                    tbar.set_description(('[%3d] %7d ||' + (' %s: %.3f |' * len(losses)) + ' T: %.3f || ETA: %s || timer: %.3f')
+                            % tuple([epoch, iteration] + loss_labels + [total, eta_str, elapsed]))
 
                 if args.log:
                     precision = 5
@@ -353,12 +368,12 @@ def train():
 
                     if args.log_gpu:
                         log.log_gpu_stats = (iteration % 10 == 0) # nvidia-smi is sloooow
-                        
+
                     log.log('train', loss=loss_info, epoch=epoch, iter=iteration,
                         lr=round(cur_lr, 10), elapsed=elapsed)
 
                     log.log_gpu_stats = args.log_gpu
-                
+
                 iteration += 1
 
                 if iteration % args.save_interval == 0 and iteration != args.start_iter:
@@ -372,21 +387,21 @@ def train():
                         if args.keep_latest_interval <= 0 or iteration % args.keep_latest_interval != args.save_interval:
                             print('Deleting old save...')
                             os.remove(latest)
-            
+
             # This is done per epoch
             if args.validation_epoch > 0:
                 if epoch % args.validation_epoch == 0 and epoch > 0:
                     compute_validation_map(epoch, iteration, yolact_net, val_dataset, log if args.log else None)
-        
+
         # Compute validation mAP after training is finished
         compute_validation_map(epoch, iteration, yolact_net, val_dataset, log if args.log else None)
     except KeyboardInterrupt:
         if args.interrupt:
             print('Stopping early. Saving network...')
-            
+
             # Delete previous copy of the interrupted network so we don't spam the weights folder
             SavePath.remove_interrupt(args.save_folder)
-            
+
             yolact_net.save_weights(save_path(epoch, repr(iteration) + '_interrupt'))
         exit()
 
@@ -396,104 +411,104 @@ def train():
 def set_lr(optimizer, new_lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = new_lr
-    
+
     global cur_lr
     cur_lr = new_lr
 
-def gradinator(x):
-    x.requires_grad = False
-    return x
+#def gradinator(x):
+    #x.requires_grad = False
+    #return x
 
-def prepare_data(datum, devices:list=None, allocation:list=None):
-    with torch.no_grad():
-        if devices is None:
-            devices = ['cuda:0'] if args.cuda else ['cpu']
-        if allocation is None:
-            allocation = [args.batch_size // len(devices)] * (len(devices) - 1)
-            allocation.append(args.batch_size - sum(allocation)) # The rest might need more/less
-        
-        images, (targets, masks, num_crowds) = datum
+#def prepare_data(datum, devices:list=None, allocation:list=None):
+    #with torch.no_grad():
+        #if devices is None:
+            #devices = ['cuda:0'] if args.cuda else ['cpu']
+        #if allocation is None:
+            #allocation = [args.batch_size // len(devices)] * (len(devices) - 1)
+            #allocation.append(args.batch_size - sum(allocation)) # The rest might need more/less
 
-        cur_idx = 0
-        for device, alloc in zip(devices, allocation):
-            for _ in range(alloc):
-                images[cur_idx]  = gradinator(images[cur_idx].to(device))
-                targets[cur_idx] = gradinator(targets[cur_idx].to(device))
-                masks[cur_idx]   = gradinator(masks[cur_idx].to(device))
-                cur_idx += 1
+        #images, (targets, masks, num_crowds) = datum
 
-        if cfg.preserve_aspect_ratio:
-            # Choose a random size from the batch
-            _, h, w = images[random.randint(0, len(images)-1)].size()
+        #cur_idx = 0
+        #for device, alloc in zip(devices, allocation):
+            #for _ in range(alloc):
+                #images[cur_idx]  = gradinator(images[cur_idx].to(device))
+                #targets[cur_idx] = gradinator(targets[cur_idx].to(device))
+                #masks[cur_idx]   = gradinator(masks[cur_idx].to(device))
+                #cur_idx += 1
 
-            for idx, (image, target, mask, num_crowd) in enumerate(zip(images, targets, masks, num_crowds)):
-                images[idx], targets[idx], masks[idx], num_crowds[idx] \
-                    = enforce_size(image, target, mask, num_crowd, w, h)
-        
-        cur_idx = 0
-        split_images, split_targets, split_masks, split_numcrowds \
-            = [[None for alloc in allocation] for _ in range(4)]
+        #if cfg.preserve_aspect_ratio:
+            ## Choose a random size from the batch
+            #_, h, w = images[random.randint(0, len(images)-1)].size()
 
-        for device_idx, alloc in enumerate(allocation):
-            split_images[device_idx]    = torch.stack(images[cur_idx:cur_idx+alloc], dim=0)
-            split_targets[device_idx]   = targets[cur_idx:cur_idx+alloc]
-            split_masks[device_idx]     = masks[cur_idx:cur_idx+alloc]
-            split_numcrowds[device_idx] = num_crowds[cur_idx:cur_idx+alloc]
+            #for idx, (image, target, mask, num_crowd) in enumerate(zip(images, targets, masks, num_crowds)):
+                #images[idx], targets[idx], masks[idx], num_crowds[idx] \
+                    #= enforce_size(image, target, mask, num_crowd, w, h)
 
-            cur_idx += alloc
+        #cur_idx = 0
+        #split_images, split_targets, split_masks, split_numcrowds \
+            #= [[None for alloc in allocation] for _ in range(4)]
 
-        return split_images, split_targets, split_masks, split_numcrowds
+        #for device_idx, alloc in enumerate(allocation):
+            #split_images[device_idx]    = torch.stack(images[cur_idx:cur_idx+alloc], dim=0)
+            #split_targets[device_idx]   = targets[cur_idx:cur_idx+alloc]
+            #split_masks[device_idx]     = masks[cur_idx:cur_idx+alloc]
+            #split_numcrowds[device_idx] = num_crowds[cur_idx:cur_idx+alloc]
 
-def no_inf_mean(x:torch.Tensor):
-    """
-    Computes the mean of a vector, throwing out all inf values.
-    If there are no non-inf values, this will return inf (i.e., just the normal mean).
-    """
+            #cur_idx += alloc
 
-    no_inf = [a for a in x if torch.isfinite(a)]
+        #return split_images, split_targets, split_masks, split_numcrowds
 
-    if len(no_inf) > 0:
-        return sum(no_inf) / len(no_inf)
-    else:
-        return x.mean()
+#def no_inf_mean(x:torch.Tensor):
+    #"""
+    #Computes the mean of a vector, throwing out all inf values.
+    #If there are no non-inf values, this will return inf (i.e., just the normal mean).
+    #"""
 
-def compute_validation_loss(net, data_loader, criterion):
-    global loss_types
+    #no_inf = [a for a in x if torch.isfinite(a)]
 
-    with torch.no_grad():
-        losses = {}
-        
-        # Don't switch to eval mode because we want to get losses
-        iterations = 0
-        for datum in data_loader:
-            images, targets, masks, num_crowds = prepare_data(datum)
-            out = net(images)
+    #if len(no_inf) > 0:
+        #return sum(no_inf) / len(no_inf)
+    #else:
+        #return x.mean()
 
-            wrapper = ScatterWrapper(targets, masks, num_crowds)
-            _losses = criterion(out, wrapper, wrapper.make_mask())
-            
-            for k, v in _losses.items():
-                v = v.mean().item()
-                if k in losses:
-                    losses[k] += v
-                else:
-                    losses[k] = v
+#def compute_validation_loss(net, data_loader, criterion):
+    #global loss_types
 
-            iterations += 1
-            if args.validation_size <= iterations * args.batch_size:
-                break
-        
-        for k in losses:
-            losses[k] /= iterations
-            
-        
-        loss_labels = sum([[k, losses[k]] for k in loss_types if k in losses], [])
-        print(('Validation ||' + (' %s: %.3f |' * len(losses)) + ')') % tuple(loss_labels), flush=True)
+    #with torch.no_grad():
+        #losses = {}
+
+        ## Don't switch to eval mode because we want to get losses
+        #iterations = 0
+        #for datum in data_loader:
+            #images, targets, masks, num_crowds = prepare_data(datum)
+            #out = net(images)
+
+            #wrapper = ScatterWrapper(targets, masks, num_crowds)
+            #_losses = criterion(out, wrapper, wrapper.make_mask())
+
+            #for k, v in _losses.items():
+                #v = v.mean().item()
+                #if k in losses:
+                    #losses[k] += v
+                #else:
+                    #losses[k] = v
+
+            #iterations += 1
+            #if args.validation_size <= iterations * args.batch_size:
+                #break
+
+        #for k in losses:
+            #losses[k] /= iterations
+
+
+        #loss_labels = sum([[k, losses[k]] for k in loss_types if k in losses], [])
+        #print(('Validation ||' + (' %s: %.3f |' * len(losses)) + ')') % tuple(loss_labels), flush=True)
 
 def compute_validation_map(epoch, iteration, yolact_net, dataset, log:Log=None):
     with torch.no_grad():
         yolact_net.eval()
-        
+
         start = time.time()
         print()
         print("Computing validation mAP (this may take a while)...", flush=True)
