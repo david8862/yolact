@@ -807,7 +807,8 @@ yolact_plus_resnet50_config = yolact_plus_base_config.copy({
 
 
 # Default config
-cfg = yolact_base_config.copy()
+#cfg = yolact_base_config.copy()
+cfg = yolact_resnet50_config.copy()
 
 def set_cfg(config_name:str):
     """ Sets the active config. Works even if cfg is already imported! """

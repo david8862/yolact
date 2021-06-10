@@ -281,4 +281,4 @@ def detection_collate(batch):
         masks.append(torch.FloatTensor(sample[1][1]))
         num_crowds.append(sample[1][2])
 
-    return imgs, (targets, masks, num_crowds)
+    return torch.stack(imgs, 0), (targets, masks, num_crowds)

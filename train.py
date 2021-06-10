@@ -30,7 +30,7 @@ def str2bool(v):
 
 parser = argparse.ArgumentParser(
     description='Yolact Training Script')
-parser.add_argument('--batch_size', default=8, type=int,
+parser.add_argument('--batch_size', default=2, type=int,
                     help='Batch size for training')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from. If this is "interrupt"'\
@@ -40,8 +40,8 @@ parser.add_argument('--start_iter', default=-1, type=int,
                          'determined from the file name.')
 parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
-parser.add_argument('--cuda', default=True, type=str2bool,
-                    help='Use CUDA to train model')
+#parser.add_argument('--cuda', default=False, type=str2bool,
+                    #help='Use CUDA to train model')
 parser.add_argument('--lr', '--learning_rate', default=None, type=float,
                     help='Initial learning rate. Leave as None to read this from the config.')
 parser.add_argument('--momentum', default=None, type=float,
@@ -108,26 +108,26 @@ replace('momentum')
 # This is managed by set_lr
 cur_lr = args.lr
 
-if torch.cuda.device_count() == 0:
-    print('No GPUs detected. Exiting...')
-    exit(-1)
+#if torch.cuda.device_count() == 0:
+    #print('No GPUs detected. Exiting...')
+    #exit(-1)
 
-if args.batch_size // torch.cuda.device_count() < 6:
-    if __name__ == '__main__':
-        print('Per-GPU batch size is less than the recommended limit for batch norm. Disabling batch norm.')
-    cfg.freeze_bn = True
+#if args.batch_size // torch.cuda.device_count() < 6:
+    #if __name__ == '__main__':
+        #print('Per-GPU batch size is less than the recommended limit for batch norm. Disabling batch norm.')
+    #cfg.freeze_bn = True
 
 loss_types = ['B', 'C', 'M', 'P', 'D', 'E', 'S', 'I']
 
-if torch.cuda.is_available():
-    if args.cuda:
-        torch.set_default_tensor_type('torch.cuda.FloatTensor')
-    if not args.cuda:
-        print("WARNING: It looks like you have a CUDA device, but aren't " +
-              "using CUDA.\nRun with --cuda for optimal training speed.")
-        torch.set_default_tensor_type('torch.FloatTensor')
-else:
-    torch.set_default_tensor_type('torch.FloatTensor')
+#if torch.cuda.is_available():
+    #if args.cuda:
+        #torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    #if not args.cuda:
+        #print("WARNING: It looks like you have a CUDA device, but aren't " +
+              #"using CUDA.\nRun with --cuda for optimal training speed.")
+        #torch.set_default_tensor_type('torch.FloatTensor')
+#else:
+    #torch.set_default_tensor_type('torch.FloatTensor')
 
 class NetLoss(nn.Module):
     """
@@ -172,6 +172,8 @@ class CustomDataParallel(nn.DataParallel):
 def train():
     if not os.path.exists(args.save_folder):
         os.mkdir(args.save_folder)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataset = COCODetection(image_path=cfg.dataset.train_images,
                             info_file=cfg.dataset.train_info,
@@ -225,13 +227,15 @@ def train():
             print('Error: Batch allocation (%s) does not sum to batch size (%s).' % (args.batch_alloc, args.batch_size))
             exit(-1)
 
-    net = CustomDataParallel(NetLoss(net, criterion))
-    if args.cuda:
-        net = net.cuda()
+    #net = CustomDataParallel(NetLoss(net, criterion))
+    net = NetLoss(net, criterion).to(device)
+    #if args.cuda:
+        #net = net.cuda()
     
     # Initialize everything
     if not cfg.freeze_bn: yolact_net.freeze_bn() # Freeze bn so we don't kill our means
-    yolact_net(torch.zeros(1, 3, cfg.max_size, cfg.max_size).cuda())
+    #yolact_net(torch.zeros(1, 3, cfg.max_size, cfg.max_size).cuda())
+    yolact_net(torch.zeros(1, 3, cfg.max_size, cfg.max_size).to(device))
     if not cfg.freeze_bn: yolact_net.freeze_bn(True)
 
     # loss counters
@@ -303,8 +307,12 @@ def train():
                 # Zero the grad to get ready to compute gradients
                 optimizer.zero_grad()
 
+                images, gt = datum
+                targets, masks, num_crowds = gt
+
                 # Forward Pass + Compute loss at the same time (see CustomDataParallel and NetLoss)
-                losses = net(datum)
+                #losses = net(datum)
+                losses = net(images, targets, masks, num_crowds)
                 
                 losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
                 loss = sum([losses[k] for k in losses])
