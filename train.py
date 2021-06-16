@@ -11,7 +11,7 @@ import datetime
 #from pathlib import Path
 
 import torch
-from torch.autograd import Variable
+#from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
 #import torch.backends.cudnn as cudnn
@@ -22,7 +22,7 @@ from data import *
 from utils.augmentations import YOLACTAugmentation, BaseTransform
 from utils.functions import MovingAverage, SavePath
 from utils.logger import Log
-from utils import timer
+#from utils import timer
 from layers.modules import MultiBoxLoss
 from yolact import Yolact
 
@@ -39,12 +39,12 @@ parser = argparse.ArgumentParser(
     description='Yolact Training Script')
 parser.add_argument('--batch_size', default=8, type=int,
                     help='Batch size for training')
-parser.add_argument('--resume', default=None, type=str,
-                    help='Checkpoint state_dict file to resume training from. If this is "interrupt"'\
-                         ', the model will resume training from the interrupt file.')
-parser.add_argument('--start_iter', default=-1, type=int,
-                    help='Resume training at this iter. If this is -1, the iteration will be'\
-                         'determined from the file name.')
+#parser.add_argument('--resume', default=None, type=str,
+                    #help='Checkpoint state_dict file to resume training from. If this is "interrupt"'\
+                         #', the model will resume training from the interrupt file.')
+#parser.add_argument('--start_iter', default=-1, type=int,
+                    #help='Resume training at this iter. If this is -1, the iteration will be'\
+                         #'determined from the file name.')
 parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
 #parser.add_argument('--cuda', default=False, type=str2bool,
@@ -59,34 +59,34 @@ parser.add_argument('--gamma', default=None, type=float,
                     help='For each lr step, what to multiply the lr by. Leave as None to read this from the config.')
 parser.add_argument('--save_folder', default='weights/',
                     help='Directory for saving checkpoint models.')
-parser.add_argument('--log_folder', default='logs/',
-                    help='Directory for saving logs.')
+#parser.add_argument('--log_folder', default='logs/',
+                    #help='Directory for saving logs.')
 parser.add_argument('--config', default=None,
                     help='The config object to use.')
-parser.add_argument('--save_interval', default=10000, type=int,
-                    help='The number of iterations between saving the model.')
+#parser.add_argument('--save_interval', default=10000, type=int,
+                    #help='The number of iterations between saving the model.')
 parser.add_argument('--validation_size', default=5000, type=int,
                     help='The number of images to use for validation.')
 parser.add_argument('--validation_epoch', default=2, type=int,
                     help='Output validation information every n iterations. If -1, do no validation.')
-parser.add_argument('--keep_latest', dest='keep_latest', action='store_true',
-                    help='Only keep the latest checkpoint instead of each one.')
-parser.add_argument('--keep_latest_interval', default=100000, type=int,
-                    help='When --keep_latest is on, don\'t delete the latest file at these intervals. This should be a multiple of save_interval or 0.')
+#parser.add_argument('--keep_latest', dest='keep_latest', action='store_true',
+                    #help='Only keep the latest checkpoint instead of each one.')
+#parser.add_argument('--keep_latest_interval', default=100000, type=int,
+                    #help='When --keep_latest is on, don\'t delete the latest file at these intervals. This should be a multiple of save_interval or 0.')
 parser.add_argument('--dataset', default=None, type=str,
                     help='If specified, override the dataset specified in the config with this one (example: coco2017_dataset).')
-parser.add_argument('--no_log', dest='log', action='store_false',
-                    help='Don\'t log per iteration information into log_folder.')
-parser.add_argument('--log_gpu', dest='log_gpu', action='store_true',
-                    help='Include GPU information in the logs. Nvidia-smi tends to be slow, so set this with caution.')
-parser.add_argument('--no_interrupt', dest='interrupt', action='store_false',
-                    help='Don\'t save an interrupt when KeyboardInterrupt is caught.')
-parser.add_argument('--batch_alloc', default=None, type=str,
-                    help='If using multiple GPUS, you can set this to be a comma separated list detailing which GPUs should get what local batch size (It should add up to your total batch size).')
-parser.add_argument('--no_autoscale', dest='autoscale', action='store_false',
-                    help='YOLACT will automatically scale the lr and the number of iterations depending on the batch size. Set this if you want to disable that.')
+#parser.add_argument('--no_log', dest='log', action='store_false',
+                    #help='Don\'t log per iteration information into log_folder.')
+#parser.add_argument('--log_gpu', dest='log_gpu', action='store_true',
+                    #help='Include GPU information in the logs. Nvidia-smi tends to be slow, so set this with caution.')
+#parser.add_argument('--no_interrupt', dest='interrupt', action='store_false',
+                    #help='Don\'t save an interrupt when KeyboardInterrupt is caught.')
+#parser.add_argument('--batch_alloc', default=None, type=str,
+                    #help='If using multiple GPUS, you can set this to be a comma separated list detailing which GPUs should get what local batch size (It should add up to your total batch size).')
+#parser.add_argument('--no_autoscale', dest='autoscale', action='store_false',
+                    #help='YOLACT will automatically scale the lr and the number of iterations depending on the batch size. Set this if you want to disable that.')
 
-parser.set_defaults(keep_latest=False, log=True, log_gpu=False, interrupt=True, autoscale=True)
+#parser.set_defaults(keep_latest=False, log=True, log_gpu=False, interrupt=True, autoscale=True)
 args = parser.parse_args()
 
 if args.config is not None:
@@ -95,14 +95,14 @@ if args.config is not None:
 if args.dataset is not None:
     set_dataset(args.dataset)
 
-if args.autoscale and args.batch_size != 8:
-    factor = args.batch_size / 8
-    if __name__ == '__main__':
-        print('Scaling parameters by %.2f to account for a batch size of %d.' % (factor, args.batch_size))
+#if args.autoscale and args.batch_size != 8:
+    #factor = args.batch_size / 8
+    #if __name__ == '__main__':
+        #print('Scaling parameters by %.2f to account for a batch size of %d.' % (factor, args.batch_size))
 
-    cfg.lr *= factor
-    cfg.max_iter //= factor
-    cfg.lr_steps = [x // factor for x in cfg.lr_steps]
+    #cfg.lr *= factor
+    #cfg.max_iter //= factor
+    #cfg.lr_steps = [x // factor for x in cfg.lr_steps]
 
 # Update training parameters from the config if necessary
 def replace(name):
@@ -136,21 +136,21 @@ loss_types = ['B', 'C', 'M', 'P', 'D', 'E', 'S', 'I']
 #else:
     #torch.set_default_tensor_type('torch.FloatTensor')
 
-class NetLoss(nn.Module):
+class ModelLoss(nn.Module):
     """
     A wrapper for running the network and computing the loss
     This is so we can more efficiently use DataParallel.
     """
 
-    def __init__(self, net:Yolact, criterion:MultiBoxLoss):
+    def __init__(self, model:Yolact, criterion:MultiBoxLoss):
         super().__init__()
 
-        self.net = net
+        self.model = model
         self.criterion = criterion
 
     def forward(self, images, targets, masks, num_crowds):
-        preds = self.net(images)
-        losses = self.criterion(self.net, preds, targets, masks, num_crowds)
+        preds = self.model(images)
+        losses = self.criterion(self.model, preds, targets, masks, num_crowds)
         return losses
 
 #class CustomDataParallel(nn.DataParallel):
@@ -193,63 +193,72 @@ def train():
                                     transform=BaseTransform(MEANS))
 
     # Parallel wraps the underlying module, but when saving and loading we don't want that
-    yolact_net = Yolact().to(device)
-    net = yolact_net
-    net.train()
+    #yolact_net = Yolact().to(device)
+    #net = yolact_net
+    #net.train()
+    model = Yolact().to(device)
+    model.train()
 
-    if args.log:
-        log = Log(cfg.name, args.log_folder, dict(args._get_kwargs()),
-            overwrite=(args.resume is None), log_gpu_stats=args.log_gpu)
+    #if args.log:
+        #log = Log(cfg.name, args.log_folder, dict(args._get_kwargs()),
+            #overwrite=(args.resume is None), log_gpu_stats=args.log_gpu)
 
     # I don't use the timer during training (I use a different timing method).
     # Apparently there's a race condition with multiple GPUs, so disable it just to be safe.
-    timer.disable_all()
+    #timer.disable_all()
 
     # Both of these can set args.resume to None, so do them before the check
-    if args.resume == 'interrupt':
-        args.resume = SavePath.get_interrupt(args.save_folder)
-    elif args.resume == 'latest':
-        args.resume = SavePath.get_latest(args.save_folder, cfg.name)
+    #if args.resume == 'interrupt':
+        #args.resume = SavePath.get_interrupt(args.save_folder)
+    #elif args.resume == 'latest':
+        #args.resume = SavePath.get_latest(args.save_folder, cfg.name)
 
-    if args.resume is not None:
-        print('Resuming training, loading {}...'.format(args.resume))
-        yolact_net.load_weights(args.resume)
+    #if args.resume is not None:
+        #print('Resuming training, loading {}...'.format(args.resume))
+        #model.load_weights(args.resume)
 
-        if args.start_iter == -1:
-            args.start_iter = SavePath.from_str(args.resume).iteration
-    else:
-        print('Initializing weights...')
-        yolact_net.init_weights(backbone_path=args.save_folder + cfg.backbone.path)
+        #if args.start_iter == -1:
+            #args.start_iter = SavePath.from_str(args.resume).iteration
+    #else:
+        #print('Initializing weights...')
+        #model.init_weights(backbone_path=args.save_folder + cfg.backbone.path)
 
-    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum,
+    print('Initializing weights...')
+    model.init_weights(backbone_path=args.save_folder + cfg.backbone.path)
+
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum,
                           weight_decay=args.decay)
     criterion = MultiBoxLoss(num_classes=cfg.num_classes,
                              pos_threshold=cfg.positive_iou_threshold,
                              neg_threshold=cfg.negative_iou_threshold,
                              negpos_ratio=cfg.ohem_negpos_ratio).to(device)
 
-    if args.batch_alloc is not None:
-        args.batch_alloc = [int(x) for x in args.batch_alloc.split(',')]
-        if sum(args.batch_alloc) != args.batch_size:
-            print('Error: Batch allocation (%s) does not sum to batch size (%s).' % (args.batch_alloc, args.batch_size))
-            exit(-1)
+    #if args.batch_alloc is not None:
+        #args.batch_alloc = [int(x) for x in args.batch_alloc.split(',')]
+        #if sum(args.batch_alloc) != args.batch_size:
+            #print('Error: Batch allocation (%s) does not sum to batch size (%s).' % (args.batch_alloc, args.batch_size))
+            #exit(-1)
 
-    #net = CustomDataParallel(NetLoss(net, criterion))
-    net = NetLoss(net, criterion).to(device)
+    #train_model = CustomDataParallel(ModelLoss(model, criterion))
+    train_model = ModelLoss(model, criterion).to(device)
     #if args.cuda:
-        #net = net.cuda()
+        #train_model = train_model.cuda()
 
     # Initialize everything
-    if not cfg.freeze_bn: yolact_net.freeze_bn() # Freeze bn so we don't kill our means
-    #yolact_net(torch.zeros(1, 3, cfg.max_size, cfg.max_size).cuda())
-    yolact_net(torch.zeros(1, 3, cfg.max_size, cfg.max_size).to(device))
-    if not cfg.freeze_bn: yolact_net.freeze_bn(True)
+    if not cfg.freeze_bn: model.freeze_bn() # Freeze bn so we don't kill our means
+    #model(torch.zeros(1, 3, cfg.max_size, cfg.max_size).cuda())
+    model(torch.zeros(1, 3, cfg.max_size, cfg.max_size).to(device))
+    if not cfg.freeze_bn: model.freeze_bn(True)
+
+    print(model)
+    torch.save(model, 'try.pth')
 
     # loss counters
     loc_loss = 0
     conf_loss = 0
-    iteration = max(args.start_iter, 0)
-    last_time = time.time()
+    iteration = 0
+    #iteration = max(args.start_iter, 0)
+    #last_time = time.time()
 
     epoch_size = len(dataset) // args.batch_size
     num_epochs = math.ceil(cfg.max_iter / epoch_size)
@@ -263,8 +272,8 @@ def train():
                                   pin_memory=True)
 
 
-    save_path = lambda epoch, iteration: SavePath(cfg.name, epoch, iteration).get_path(root=args.save_folder)
-    time_avg = MovingAverage()
+    #save_path = lambda epoch, iteration: SavePath(cfg.name, epoch, iteration).get_path(root=args.save_folder)
+    #time_avg = MovingAverage()
 
     global loss_types # Forms the print order
     loss_avgs  = { k: MovingAverage(100) for k in loss_types }
@@ -276,43 +285,47 @@ def train():
         for epoch in range(num_epochs):
             print('Epoch %d/%d'%(epoch, num_epochs))
             # Resume from start_iter
-            if (epoch+1)*epoch_size < iteration:
-                continue
+            #if (epoch+1)*epoch_size < iteration:
+                #continue
+            compute_validation_map(epoch, iteration, model, val_dataset, device, None)
 
             tbar = tqdm(data_loader)
             for i, (images, gt) in enumerate(tbar):
             #for datum in data_loader:
                 # Stop if we've reached an epoch if we're resuming from start_iter
-                if iteration == (epoch+1)*epoch_size:
-                    break
+                #if iteration == (epoch+1)*epoch_size:
+                    #break
 
                 # Stop at the configured number of iterations even if mid-epoch
-                if iteration == cfg.max_iter:
-                    break
+                #if iteration == cfg.max_iter:
+                    #break
 
                 # Change a config setting if we've reached the specified iteration
-                changed = False
-                for change in cfg.delayed_settings:
-                    if iteration >= change[0]:
-                        changed = True
-                        cfg.replace(change[1])
+                #changed = False
+                #for change in cfg.delayed_settings:
+                    #if iteration >= change[0]:
+                        #changed = True
+                        #cfg.replace(change[1])
 
-                        # Reset the loss averages because things might have changed
-                        for avg in loss_avgs:
-                            avg.reset()
+                        ## Reset the loss averages because things might have changed
+                        #for avg in loss_avgs:
+                            #avg.reset()
 
                 # If a config setting was changed, remove it from the list so we don't keep checking
-                if changed:
-                    cfg.delayed_settings = [x for x in cfg.delayed_settings if x[0] > iteration]
+                #if changed:
+                    #cfg.delayed_settings = [x for x in cfg.delayed_settings if x[0] > iteration]
+
+
+
 
                 # Warm up by linearly interpolating the learning rate from some smaller value
-                if cfg.lr_warmup_until > 0 and iteration <= cfg.lr_warmup_until:
-                    set_lr(optimizer, (args.lr - cfg.lr_warmup_init) * (iteration / cfg.lr_warmup_until) + cfg.lr_warmup_init)
+                #if cfg.lr_warmup_until > 0 and iteration <= cfg.lr_warmup_until:
+                    #set_lr(optimizer, (args.lr - cfg.lr_warmup_init) * (iteration / cfg.lr_warmup_until) + cfg.lr_warmup_init)
 
                 # Adjust the learning rate at the given iterations, but also if we resume from past that iteration
-                while step_index < len(cfg.lr_steps) and iteration >= cfg.lr_steps[step_index]:
-                    step_index += 1
-                    set_lr(optimizer, args.lr * (args.gamma ** step_index))
+                #while step_index < len(cfg.lr_steps) and iteration >= cfg.lr_steps[step_index]:
+                    #step_index += 1
+                    #set_lr(optimizer, args.lr * (args.gamma ** step_index))
 
                 # Zero the grad to get ready to compute gradients
                 optimizer.zero_grad()
@@ -323,9 +336,9 @@ def train():
                 targets = [target.to(device) for target in targets]
                 masks = [mask.to(device) for mask in masks]
 
-                # Forward Pass + Compute loss at the same time (see CustomDataParallel and NetLoss)
-                #losses = net(datum)
-                losses = net(images, targets, masks, num_crowds)
+                # Forward Pass + Compute loss at the same time (see CustomDataParallel and ModelLoss)
+                #losses = train_model(datum)
+                losses = train_model(images, targets, masks, num_crowds)
 
                 losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
                 loss = sum([losses[k] for k in losses])
@@ -342,70 +355,80 @@ def train():
                 for k in losses:
                     loss_avgs[k].add(losses[k].item())
 
-                cur_time  = time.time()
-                elapsed   = cur_time - last_time
-                last_time = cur_time
+                #cur_time  = time.time()
+                #elapsed   = cur_time - last_time
+                #last_time = cur_time
 
                 # Exclude graph setup from the timing information
-                if iteration != args.start_iter:
-                    time_avg.add(elapsed)
+                #if iteration != args.start_iter:
+                    #time_avg.add(elapsed)
 
-                if iteration % 10 == 0:
-                    eta_str = str(datetime.timedelta(seconds=(cfg.max_iter-iteration) * time_avg.get_avg())).split('.')[0]
+                #if iteration % 10 == 0:
+                    #eta_str = str(datetime.timedelta(seconds=(cfg.max_iter-iteration) * time_avg.get_avg())).split('.')[0]
 
-                    total = sum([loss_avgs[k].get_avg() for k in losses])
-                    loss_labels = sum([[k, loss_avgs[k].get_avg()] for k in loss_types if k in losses], [])
+                    #total = sum([loss_avgs[k].get_avg() for k in losses])
+                    #loss_labels = sum([[k, loss_avgs[k].get_avg()] for k in loss_types if k in losses], [])
 
                     #print(('[%3d] %7d ||' + (' %s: %.3f |' * len(losses)) + ' T: %.3f || ETA: %s || timer: %.3f')
                             #% tuple([epoch, iteration] + loss_labels + [total, eta_str, elapsed]), flush=True)
-                    tbar.set_description((('%s:%.2f |' * len(losses)) + ' T:%.2f || ETA: %s')
-                            % tuple(loss_labels + [total, eta_str]))
+                    #tbar.set_description((('%s:%.2f |' * len(losses)) + ' T:%.2f')
+                            #% tuple(loss_labels + [total]))
 
-                if args.log:
-                    precision = 5
-                    loss_info = {k: round(losses[k].item(), precision) for k in losses}
-                    loss_info['T'] = round(loss.item(), precision)
 
-                    if args.log_gpu:
-                        log.log_gpu_stats = (iteration % 10 == 0) # nvidia-smi is sloooow
 
-                    log.log('train', loss=loss_info, epoch=epoch, iter=iteration,
-                        lr=round(cur_lr, 10), elapsed=elapsed)
+                total = sum([loss_avgs[k].get_avg() for k in losses])
+                loss_labels = sum([[k, loss_avgs[k].get_avg()] for k in loss_types if k in losses], [])
+                tbar.set_description((('%s:%.2f |' * len(losses)) + ' T:%.2f')
+                        % tuple(loss_labels + [total]))
 
-                    log.log_gpu_stats = args.log_gpu
+
+                #if args.log:
+                    #precision = 5
+                    #loss_info = {k: round(losses[k].item(), precision) for k in losses}
+                    #loss_info['T'] = round(loss.item(), precision)
+
+                    #if args.log_gpu:
+                        #log.log_gpu_stats = (iteration % 10 == 0) # nvidia-smi is sloooow
+
+                    #log.log('train', loss=loss_info, epoch=epoch, iter=iteration,
+                        #lr=round(cur_lr, 10), elapsed=elapsed)
+
+                    #log.log_gpu_stats = args.log_gpu
 
                 iteration += 1
 
-                if iteration % args.save_interval == 0 and iteration != args.start_iter:
-                    if args.keep_latest:
-                        latest = SavePath.get_latest(args.save_folder, cfg.name)
+                #if iteration % args.save_interval == 0 and iteration != args.start_iter:
+                    #if args.keep_latest:
+                        #latest = SavePath.get_latest(args.save_folder, cfg.name)
 
-                    print('Saving state, iter:', iteration)
-                    yolact_net.save_weights(save_path(epoch, iteration))
+                    #print('Saving state, iter:', iteration)
+                    #model.save_weights(save_path(epoch, iteration))
 
-                    if args.keep_latest and latest is not None:
-                        if args.keep_latest_interval <= 0 or iteration % args.keep_latest_interval != args.save_interval:
-                            print('Deleting old save...')
-                            os.remove(latest)
+                    #if args.keep_latest and latest is not None:
+                        #if args.keep_latest_interval <= 0 or iteration % args.keep_latest_interval != args.save_interval:
+                            #print('Deleting old save...')
+                            #os.remove(latest)
+            checkpoint_dir = os.path.join(args.save_folder, 'ep{epoch:03d}-iteration{iteration:d}.pth'.format(epoch=epoch+1, iteration=iteration))
+            model.save_weights(checkpoint_dir)
 
             # This is done per epoch
             if args.validation_epoch > 0:
                 if epoch % args.validation_epoch == 0 and epoch > 0:
-                    compute_validation_map(epoch, iteration, yolact_net, val_dataset, log if args.log else None)
+                    compute_validation_map(epoch, iteration, model, val_dataset, device, None)
 
         # Compute validation mAP after training is finished
-        compute_validation_map(epoch, iteration, yolact_net, val_dataset, log if args.log else None)
+        compute_validation_map(epoch, iteration, model, val_dataset, device, None)
     except KeyboardInterrupt:
-        if args.interrupt:
-            print('Stopping early. Saving network...')
+        #if args.interrupt:
+            #print('Stopping early. Saving network...')
 
-            # Delete previous copy of the interrupted network so we don't spam the weights folder
-            SavePath.remove_interrupt(args.save_folder)
+            ## Delete previous copy of the interrupted network so we don't spam the weights folder
+            #SavePath.remove_interrupt(args.save_folder)
 
-            yolact_net.save_weights(save_path(epoch, repr(iteration) + '_interrupt'))
+            #model.save_weights(save_path(epoch, repr(iteration) + '_interrupt'))
         exit()
 
-    yolact_net.save_weights(save_path(epoch, iteration))
+    #model.save_weights(save_path(epoch, iteration))
 
 
 def set_lr(optimizer, new_lr):
@@ -472,7 +495,7 @@ def set_lr(optimizer, new_lr):
     #else:
         #return x.mean()
 
-#def compute_validation_loss(net, data_loader, criterion):
+#def compute_validation_loss(model, data_loader, criterion):
     #global loss_types
 
     #with torch.no_grad():
@@ -482,7 +505,7 @@ def set_lr(optimizer, new_lr):
         #iterations = 0
         #for datum in data_loader:
             #images, targets, masks, num_crowds = prepare_data(datum)
-            #out = net(images)
+            #out = model(images)
 
             #wrapper = ScatterWrapper(targets, masks, num_crowds)
             #_losses = criterion(out, wrapper, wrapper.make_mask())
@@ -505,20 +528,20 @@ def set_lr(optimizer, new_lr):
         #loss_labels = sum([[k, losses[k]] for k in loss_types if k in losses], [])
         #print(('Validation ||' + (' %s: %.3f |' * len(losses)) + ')') % tuple(loss_labels), flush=True)
 
-def compute_validation_map(epoch, iteration, yolact_net, dataset, log:Log=None):
+def compute_validation_map(epoch, iteration, model, dataset, device, log:Log=None):
     with torch.no_grad():
-        yolact_net.eval()
+        model.eval()
 
         start = time.time()
-        print()
+        #print()
         print("Computing validation mAP (this may take a while)...", flush=True)
-        val_info = eval_script.evaluate(yolact_net, dataset, train_mode=True)
+        val_info = eval_script.evaluate(model, dataset, device, train_mode=True)
         end = time.time()
 
-        if log is not None:
-            log.log('val', val_info, elapsed=(end - start), epoch=epoch, iter=iteration)
+        #if log is not None:
+            #log.log('val', val_info, elapsed=(end - start), epoch=epoch, iter=iteration)
 
-        yolact_net.train()
+        model.train()
 
 def setup_eval():
     eval_script.parse_args(['--no_bar', '--max_images='+str(args.validation_size)])

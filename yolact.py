@@ -121,7 +121,7 @@ class PredictionModule(nn.Module):
                         nn.ReLU(inplace=True)
                     ] for _ in range(num_layers)], []))
 
-            self.bbox_extra, self.conf_extra, self.mask_extra = [make_extra(x) for x in cfg.extra_layers]
+            #self.bbox_extra, self.conf_extra, self.mask_extra = [make_extra(x) for x in cfg.extra_layers]
 
             if cfg.mask_type == mask_type.lincomb and cfg.mask_proto_coeff_gate:
                 self.gate_layer = nn.Conv2d(out_channels, self.num_priors * self.mask_dim, kernel_size=3, padding=1)
@@ -165,9 +165,12 @@ class PredictionModule(nn.Module):
             # TODO: Possibly switch this out for a product
             x = a + b
 
-        bbox_x = src.bbox_extra(x)
-        conf_x = src.conf_extra(x)
-        mask_x = src.mask_extra(x)
+        #bbox_x = src.bbox_extra(x)
+        #conf_x = src.conf_extra(x)
+        #mask_x = src.mask_extra(x)
+        bbox_x = x
+        conf_x = x
+        mask_x = x
 
         bbox = src.bbox_layer(bbox_x).permute(0, 2, 3, 1).contiguous().view(x.size(0), -1, 4)
         conf = src.conf_layer(conf_x).permute(0, 2, 3, 1).contiguous().view(x.size(0), -1, self.num_classes)
@@ -435,6 +438,9 @@ class Yolact(nn.Module):
         self.selected_layers = cfg.backbone.selected_layers
         src_channels = self.backbone.channels
 
+        print('xiaobizh --- before fpn, self.selected_layers', self.selected_layers)
+        print('xiaobizh --- before fpn, src_channels', src_channels)
+
         if cfg.use_maskiou:
             self.maskiou_net = FastMaskIoUNet()
 
@@ -444,6 +450,8 @@ class Yolact(nn.Module):
             self.selected_layers = list(range(len(self.selected_layers) + cfg.fpn.num_downsample))
             src_channels = [cfg.fpn.num_features] * len(self.selected_layers)
 
+        print('xiaobizh --- after fpn, self.selected_layers', self.selected_layers)
+        print('xiaobizh --- after fpn, src_channels', src_channels)
 
         self.prediction_layers = nn.ModuleList()
         cfg.num_heads = len(self.selected_layers)
