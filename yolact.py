@@ -438,6 +438,7 @@ class Yolact(nn.Module):
         self.selected_layers = cfg.backbone.selected_layers
         src_channels = self.backbone.channels
 
+        print('xiaobizh --- self.num_grids', self.num_grids)
         print('xiaobizh --- before fpn, self.selected_layers', self.selected_layers)
         print('xiaobizh --- before fpn, src_channels', src_channels)
 

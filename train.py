@@ -7,7 +7,7 @@ import time
 import math, random
 import numpy as np
 from tqdm import tqdm
-import datetime
+#import datetime
 #from pathlib import Path
 
 import torch
@@ -251,7 +251,7 @@ def train():
     if not cfg.freeze_bn: model.freeze_bn(True)
 
     print(model)
-    torch.save(model, 'try.pth')
+    #torch.save(model, 'try.pth')
 
     # loss counters
     loc_loss = 0
@@ -290,7 +290,7 @@ def train():
             compute_validation_map(epoch, iteration, model, val_dataset, device, None)
 
             tbar = tqdm(data_loader)
-            for i, (images, gt) in enumerate(tbar):
+            for i, (images, labels) in enumerate(tbar):
             #for datum in data_loader:
                 # Stop if we've reached an epoch if we're resuming from start_iter
                 #if iteration == (epoch+1)*epoch_size:
@@ -319,19 +319,19 @@ def train():
 
 
                 # Warm up by linearly interpolating the learning rate from some smaller value
-                #if cfg.lr_warmup_until > 0 and iteration <= cfg.lr_warmup_until:
-                    #set_lr(optimizer, (args.lr - cfg.lr_warmup_init) * (iteration / cfg.lr_warmup_until) + cfg.lr_warmup_init)
+                if cfg.lr_warmup_until > 0 and iteration <= cfg.lr_warmup_until:
+                    set_lr(optimizer, (args.lr - cfg.lr_warmup_init) * (iteration / cfg.lr_warmup_until) + cfg.lr_warmup_init)
 
                 # Adjust the learning rate at the given iterations, but also if we resume from past that iteration
-                #while step_index < len(cfg.lr_steps) and iteration >= cfg.lr_steps[step_index]:
-                    #step_index += 1
-                    #set_lr(optimizer, args.lr * (args.gamma ** step_index))
+                while step_index < len(cfg.lr_steps) and iteration >= cfg.lr_steps[step_index]:
+                    step_index += 1
+                    set_lr(optimizer, args.lr * (args.gamma ** step_index))
 
                 # Zero the grad to get ready to compute gradients
                 optimizer.zero_grad()
 
-                #images, gt = datum
-                targets, masks, num_crowds = gt
+                #images, labels = datum
+                targets, masks, num_crowds = labels
                 images = images.to(device)
                 targets = [target.to(device) for target in targets]
                 masks = [mask.to(device) for mask in masks]
@@ -544,7 +544,8 @@ def compute_validation_map(epoch, iteration, model, dataset, device, log:Log=Non
         model.train()
 
 def setup_eval():
-    eval_script.parse_args(['--no_bar', '--max_images='+str(args.validation_size)])
+    #eval_script.parse_args(['--no_bar', '--max_images='+str(args.validation_size)])
+    eval_script.parse_args(['--max_images='+str(10)])
 
 if __name__ == '__main__':
     train()
