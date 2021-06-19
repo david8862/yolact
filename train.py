@@ -545,7 +545,7 @@ def compute_validation_map(epoch, iteration, model, dataset, device, log:Log=Non
 
 def setup_eval():
     #eval_script.parse_args(['--no_bar', '--max_images='+str(args.validation_size)])
-    eval_script.parse_args(['--max_images='+str(10)])
+    eval_script.parse_args(['--max_images='+str(args.validation_size)])
 
 if __name__ == '__main__':
     train()
