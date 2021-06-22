@@ -26,8 +26,8 @@ from utils.functions import MovingAverage, make_net
 
 # As of March 10, 2019, Pytorch DataParallel still doesn't support JIT Script Modules
 use_jit = False
-if not use_jit:
-    print('Multiple GPUs detected! Turning off JIT.')
+#if not use_jit:
+    #print('Multiple GPUs detected! Turning off JIT.')
 
 ScriptModuleWrapper = torch.jit.ScriptModule if use_jit else nn.Module
 script_method_wrapper = torch.jit.script_method if use_jit else lambda fn, _rcn=None: fn
@@ -438,9 +438,9 @@ class Yolact(nn.Module):
         self.selected_layers = cfg.backbone.selected_layers
         src_channels = self.backbone.channels
 
-        print('xiaobizh --- self.num_grids', self.num_grids)
-        print('xiaobizh --- before fpn, self.selected_layers', self.selected_layers)
-        print('xiaobizh --- before fpn, src_channels', src_channels)
+        #print('xiaobizh --- self.num_grids', self.num_grids)
+        #print('xiaobizh --- before fpn, self.selected_layers', self.selected_layers)
+        #print('xiaobizh --- before fpn, src_channels', src_channels)
 
         if cfg.use_maskiou:
             self.maskiou_net = FastMaskIoUNet()
@@ -451,8 +451,8 @@ class Yolact(nn.Module):
             self.selected_layers = list(range(len(self.selected_layers) + cfg.fpn.num_downsample))
             src_channels = [cfg.fpn.num_features] * len(self.selected_layers)
 
-        print('xiaobizh --- after fpn, self.selected_layers', self.selected_layers)
-        print('xiaobizh --- after fpn, src_channels', src_channels)
+        #print('xiaobizh --- after fpn, self.selected_layers', self.selected_layers)
+        #print('xiaobizh --- after fpn, src_channels', src_channels)
 
         self.prediction_layers = nn.ModuleList()
         cfg.num_heads = len(self.selected_layers)
@@ -487,9 +487,9 @@ class Yolact(nn.Module):
         """ Saves the model's weights using compression because the file sizes were getting too big. """
         torch.save(self.state_dict(), path)
 
-    def load_weights(self, path):
+    def load_weights(self, path, device=torch.device("cuda")):
         """ Loads weights from a compressed save file. """
-        state_dict = torch.load(path)
+        state_dict = torch.load(path, map_location=device)
 
         # For backward compatability, remove these (the new variable is called layers)
         for key in list(state_dict.keys()):

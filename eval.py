@@ -1067,10 +1067,10 @@ if __name__ == '__main__':
     if args.config is not None:
         set_cfg(args.config)
 
-    if args.trained_model == 'interrupt':
-        args.trained_model = SavePath.get_interrupt('weights/')
-    elif args.trained_model == 'latest':
-        args.trained_model = SavePath.get_latest('weights/', cfg.name)
+    #if args.trained_model == 'interrupt':
+        #args.trained_model = SavePath.get_interrupt('weights/')
+    #elif args.trained_model == 'latest':
+        #args.trained_model = SavePath.get_latest('weights/', cfg.name)
 
     if args.config is None:
         model_path = SavePath.from_str(args.trained_model)
@@ -1116,7 +1116,7 @@ if __name__ == '__main__':
 
         print('Loading model...', end='')
         model = Yolact()
-        model.load_weights(args.trained_model)
+        model.load_weights(args.trained_model, device=device)
         model.eval()
         print(' Done.')
 

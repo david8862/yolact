@@ -3,6 +3,7 @@
 """ Contains functions used to sanitize and prepare the output of Yolact. """
 import numpy as np
 import cv2
+from scipy.special import expit, softmax
 
 import torch
 import torch.nn as nn
@@ -11,7 +12,7 @@ import torch.nn.functional as F
 from data import cfg, mask_type, MEANS, STD, activation_func
 from utils.augmentations import Resize
 from utils import timer
-from .box_utils import crop, sanitize_coordinates
+from .box_utils import crop, sanitize_coordinates, crop_np, sanitize_coordinates_np
 
 def postprocess(det_output, w, h, batch_idx=0, interpolation_mode='bilinear',
                 visualize_lincomb=False, crop_masks=True, score_threshold=0):
@@ -20,7 +21,7 @@ def postprocess(det_output, w, h, batch_idx=0, interpolation_mode='bilinear',
     accounting for all the possible configuration settings.
 
     Args:
-        - det_output: The lost of dicts that Detect outputs.
+        - det_output: The list of dicts that Detect outputs.
         - w: The real with of the image.
         - h: The real height of the image.
         - batch_idx: If you have multiple images for this batch, the image's index in the batch.
@@ -124,6 +125,132 @@ def postprocess(det_output, w, h, batch_idx=0, interpolation_mode='bilinear',
 
 
 
+def mask_resize_np(mask, target_size):
+    """
+    Use cv2 to do a quick resize on predict
+    segmentation mask array to target size
+
+    # Arguments
+        mask: predict mask array to be resize
+            uint8 numpy array with shape (height, width, 1)
+        target_size: target image size,
+            tuple of format (width, height).
+
+    # Returns
+        resize_mask: resized mask array.
+
+    """
+    mask = cv2.merge([mask, mask, mask])
+    resize_mask = cv2.resize(mask, target_size, cv2.INTER_LINEAR)
+    (resize_mask, _, _) = cv2.split(np.array(resize_mask))
+
+    return resize_mask
+
+
+def postprocess_np(prediction, width, height, interpolation_mode='bilinear',
+                visualize_lincomb=False, crop_masks=True, score_threshold=0):
+    """
+    Postprocesses the numpy output of Yolact on testing mode into a format that makes sense,
+    accounting for all the possible configuration settings.
+
+    Args:
+        - prediction: The list of dicts that Detect outputs.
+        - width: The real with of the image.
+        - height: The real height of the image.
+        - interpolation_mode: Can be 'nearest' | 'area' | 'bilinear' (see torch.nn.functional.interpolate)
+
+    Returns 4 numpy array (in the following order):
+        - classes [num_det]: The class idx for each detection.
+        - scores  [num_det]: The confidence score for each detection.
+        - boxes   [num_det, 4]: The bounding box for each detection in absolute point form.
+        - masks   [num_det, height, width]: Full image masks for each detection.
+    """
+
+    #model = prediction['net']
+    dets = prediction['detection']
+
+    if dets is None:
+        return []*4
+
+    # filter with score threshold
+    if score_threshold > 0:
+        keep = dets['score'] > score_threshold
+
+        for k in dets:
+            if k != 'proto':
+                dets[k] = dets[k][keep]
+
+        if dets['score'].shape[0] == 0:
+            return [] * 4
+
+    # Actually extract everything from dets now
+    classes = dets['class']
+    boxes   = dets['box']
+    scores  = dets['score']
+    masks   = dets['mask']
+
+
+    if cfg.mask_type == mask_type.lincomb and cfg.eval_mask_branch:
+        # At this points masks is only the coefficients
+        proto_data = dets['proto']
+
+        #if visualize_lincomb:
+            #display_lincomb(proto_data, masks)
+
+        masks = proto_data @ masks.T
+        masks = expit(masks)
+
+        # Crop masks before upsampling because you know why
+        if crop_masks:
+            masks = crop_np(masks, boxes)
+
+        # Transpose into the correct output shape [num_dets, proto_h, proto_w]
+        masks = np.ascontiguousarray(masks.transpose(2, 0, 1))
+
+        #if cfg.use_maskiou:
+            #with torch.no_grad():
+                #maskiou_p = model.maskiou_net(masks.unsqueeze(1))
+                #maskiou_p = torch.gather(maskiou_p, dim=1, index=classes.unsqueeze(1)).squeeze(1)
+                #if cfg.rescore_mask:
+                    #if cfg.rescore_bbox:
+                        #scores = scores * maskiou_p
+                    #else:
+                        #scores = [scores, scores * maskiou_p]
+
+        # Scale masks up to the full image
+        full_masks = np.zeros((masks.shape[0], height, width))
+        for i in range(masks.shape[0]):
+            full_masks[i] = mask_resize_np(masks[i], (width, height))
+        masks = full_masks
+
+        # Binarize the masks
+        masks = (masks > 0.5).astype(np.uint8)
+
+    boxes[:, 0], boxes[:, 2] = sanitize_coordinates_np(boxes[:, 0], boxes[:, 2], width)
+    boxes[:, 1], boxes[:, 3] = sanitize_coordinates_np(boxes[:, 1], boxes[:, 3], height)
+
+
+    # This is abandoned mask predict type and not actually used
+    # in YOLACT model now
+    if cfg.mask_type == mask_type.direct and cfg.eval_mask_branch:
+        # Upscale masks
+        full_masks = np.zeros(masks.shape[0], height, width)
+
+        for jdx in range(masks.shape[0]):
+            x1, y1, x2, y2 = boxes[jdx, :]
+            mask_w = x2 - x1
+            mask_h = y2 - y1
+
+            # Just in case
+            if mask_w * mask_h <= 0 or mask_w < 0:
+                continue
+            mask = masks[jdx, :].reshape(1, 1, cfg.mask_size, cfg.mask_size)
+            mask = mask_resize_np(mask, (width, height))
+            mask = (mask > 0.5).astype(np.float32)
+            full_masks[jdx, y1:y2, x1:x2] = mask
+        masks = full_masks
+
+    return classes, scores, boxes, masks
 
 
 def undo_image_transformation(img, w, h):

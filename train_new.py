@@ -13,8 +13,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from data import *
 from utils.augmentations import YOLACTAugmentation, BaseTransform
-from utils.functions import MovingAverage, SavePath
-from utils.logger import Log
+#from utils.functions import MovingAverage, SavePath
+#from utils.logger import Log
 from layers.modules import MultiBoxLoss
 from yolact import Yolact
 
@@ -22,7 +22,7 @@ from yolact import Yolact
 import eval as eval_script
 
 # global value to record the best val loss and COCO mask AP
-best_val_loss = 0.0
+best_val_loss = float('inf')
 best_AP = 0.0
 
 
@@ -49,9 +49,9 @@ def train(args, epoch, model, criterion, device, train_loader, optimizer, summar
             set_lr(optimizer, (cfg.lr - cfg.lr_warmup_init) * (iteration / cfg.lr_warmup_until) + cfg.lr_warmup_init)
 
         # Adjust the learning rate at the given iterations, but also if we resume from past that iteration
-        for i in range(len(cfg.lr_steps)):
-            if iteration >= cfg.lr_steps[i]:
-                set_lr(optimizer, cfg.lr * (cfg.gamma ** (i+1)))
+        for j in range(len(cfg.lr_steps)):
+            if iteration >= cfg.lr_steps[j]:
+                set_lr(optimizer, cfg.lr * (cfg.gamma ** (j+1)))
                 break
         #while step_index < len(cfg.lr_steps) and iteration >= cfg.lr_steps[step_index]:
             #step_index += 1
@@ -145,8 +145,8 @@ def validate(args, epoch, step, model, criterion, device, val_loader, log_dir, s
             tbar.set_description((('%s:%.2f |' * len(losses)) + ' Val loss:%.2f')
                     % tuple(loss_labels + [val_loss/(i + 1)]))
 
-    val_loss /= len(val_loader.dataset)
-    print('Validate set: Average loss: {:.4f}'.format(val_loss))
+    #val_loss /= len(val_loader.dataset)
+    #print('Validate set: Average loss: {:.4f}'.format(val_loss))
 
     # log validation loss and accuracy
     summary_writer.add_scalar('val loss', val_loss, step)
@@ -174,7 +174,7 @@ def evaluate(args, epoch, model, device, dataset, log_dir):
     # check COCO mask AP to store best checkpoint
     eval_AP = eval_info['mask']['all']
 
-    # save checkpoint with best val loss
+    # save checkpoint with best mask AP
     if eval_AP > best_AP:
         os.makedirs(log_dir, exist_ok=True)
         checkpoint_dir = os.path.join(log_dir, 'ep{epoch:03d}-eval_AP{eval_AP:.3f}.pth'.format(epoch=epoch+1, eval_AP=eval_AP))
