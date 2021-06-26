@@ -121,13 +121,13 @@ def validate_yolact_model_torch(args):
 
         # convert prediction to numpy array
         prediction = {'net':  prediction['net'],
-                      'detection': {
-                                    'class': prediction['detection']['class'].cpu().numpy(),
-                                    'box': prediction['detection']['box'].cpu().numpy(),
-                                    'score': prediction['detection']['score'].cpu().numpy(),
-                                    'mask': prediction['detection']['mask'].cpu().numpy(),
-                                    'proto': prediction['detection']['proto'].cpu().numpy(),
-                                   }
+                      #'detection': {
+                      'class': prediction['detection']['class'].cpu().numpy(),
+                      'box': prediction['detection']['box'].cpu().numpy(),
+                      'score': prediction['detection']['score'].cpu().numpy(),
+                      'mask': prediction['detection']['mask'].cpu().numpy(),
+                      'proto': prediction['detection']['proto'].cpu().numpy(),
+                                   #}
                        }
 
         # postprocess and show result

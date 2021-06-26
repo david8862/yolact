@@ -145,8 +145,8 @@ def validate(args, epoch, step, model, criterion, device, val_loader, log_dir, s
             tbar.set_description((('%s:%.2f |' * len(losses)) + ' Val loss:%.2f')
                     % tuple(loss_labels + [val_loss/(i + 1)]))
 
-    #val_loss /= len(val_loader.dataset)
-    #print('Validate set: Average loss: {:.4f}'.format(val_loss))
+    val_loss /= len(val_loader)
+    print('Validate set: Average loss: {:.4f}'.format(val_loss))
 
     # log validation loss and accuracy
     summary_writer.add_scalar('val loss', val_loss, step)

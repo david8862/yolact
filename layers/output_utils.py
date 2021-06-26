@@ -167,32 +167,32 @@ def postprocess_np(prediction, width, height, interpolation_mode='bilinear',
     """
 
     #model = prediction['net']
-    dets = prediction['detection']
+    #prediction = prediction['detection']
 
-    if dets is None:
+    if prediction is None:
         return []*4
 
     # filter with score threshold
     if score_threshold > 0:
-        keep = dets['score'] > score_threshold
+        keep = prediction['score'] > score_threshold
 
-        for k in dets:
+        for k in prediction:
             if k != 'proto':
-                dets[k] = dets[k][keep]
+                prediction[k] = prediction[k][keep]
 
-        if dets['score'].shape[0] == 0:
+        if prediction['score'].shape[0] == 0:
             return [] * 4
 
-    # Actually extract everything from dets now
-    classes = dets['class']
-    boxes   = dets['box']
-    scores  = dets['score']
-    masks   = dets['mask']
+    # Actually extract everything from prediction now
+    classes = prediction['class']
+    boxes   = prediction['box']
+    scores  = prediction['score']
+    masks   = prediction['mask']
 
 
     if cfg.mask_type == mask_type.lincomb and cfg.eval_mask_branch:
         # At this points masks is only the coefficients
-        proto_data = dets['proto']
+        proto_data = prediction['proto']
 
         #if visualize_lincomb:
             #display_lincomb(proto_data, masks)
@@ -217,13 +217,13 @@ def postprocess_np(prediction, width, height, interpolation_mode='bilinear',
                     #else:
                         #scores = [scores, scores * maskiou_p]
 
-        # Scale masks up to the full image
+        # scale masks up to the full image
         full_masks = np.zeros((masks.shape[0], height, width))
         for i in range(masks.shape[0]):
             full_masks[i] = mask_resize_np(masks[i], (width, height))
         masks = full_masks
 
-        # Binarize the masks
+        # binarize the masks
         masks = (masks > 0.5).astype(np.uint8)
 
     boxes[:, 0], boxes[:, 2] = sanitize_coordinates_np(boxes[:, 0], boxes[:, 2], width)
